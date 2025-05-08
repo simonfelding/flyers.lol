@@ -1,6 +1,6 @@
 # Event Data Structure
 
-This document describes the data structure for representing events within the system. The formal and canonical definition of the event structure and related API endpoints is provided in the OpenAPI specification: [`openapi.yml`](../openapi.yml).
+This document describes the data structure for representing events within the system. The formal and canonical definition of the event structure and related API endpoints is provided in the OpenAPI specification: [`openapi.yml`](../../openapi.yml).
 
 ## 1. Design Rationale & Structure Overview
 
@@ -17,7 +17,7 @@ Key decisions include:
 
 ## 2. Structure Reference
 
-For the definitive schema of the `Event` object and its components (`Location`, `OrganizerInfo`, `ActionLink`, `Media`, `Geo`, `RelatedLinkItem`), please refer to the `components.schemas` section in the [OpenAPI specification file (`openapi.yml`)](../openapi.yml).
+For the definitive schema of the `Event` object and its components (`Location`, `OrganizerInfo`, `ActionLink`, `Media`, `Geo`, `RelatedLinkItem`), please refer to the `components.schemas` section in the [OpenAPI specification file (`openapi.yml`)](../../openapi.yml).
 
 The OpenAPI specification provides:
 *   Data types for each field.

@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 elasticsearch>=8.0.0,&lt;9.0.0
 jsonschema
+onnxruntime
+tokenizers

@@ -3,13 +3,10 @@ FROM python:3.13 AS converter
 
 WORKDIR /app
 
-# Install dependencies for model conversion
-# We need transformers, torch (for export), and onnx (though torch.onnx handles it)
-# sentencepiece is often a dependency for tokenizers
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential cmake && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install transformers torch onnx sentencepiece
+    pip install -r converter_requirements.txt
 
 # Copy the conversion script
 COPY convert_model.py .
@@ -28,10 +25,7 @@ WORKDIR /app
 # Install build tools needed for some pip packages (e.g., onnxruntime, tokenizers might have C/C++ extensions)
 
 COPY requirements.txt .
-# requirements.txt now includes elasticsearch and jsonschema
-# onnxruntime and tokenizers are also essential for the app
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir onnxruntime tokenizers
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the ONNX model and tokenizer from the converter stage
 COPY --from=converter /app/gte-multilingual-base-onnx /app/gte-multilingual-base-onnx
