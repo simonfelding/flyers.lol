@@ -1,0 +1,22 @@
+{
+  "name": "admin-ui",
+  "version": "1.0.0",
+  "description": "Admin UI for flyers.lol",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "build:css": "npx tailwindcss -i ./public/css/style.css -o ./public/css/output.css"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "ejs": "^3.1.6",
+    "express": "^4.17.1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17"
+  }
+}

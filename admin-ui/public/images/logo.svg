@@ -1,0 +1,12 @@
+<svg width="150" height="40" viewBox="0 0 150 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- "flyers" text -->
+  <text x="10" y="28" font-family="'-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif" font-size="24" font-weight="600" fill="#2D3748"> <!-- Cool Gray 700 -->
+    flyers
+  </text>
+  <!-- ".lol" text in a different color, slightly smaller and offset -->
+  <text x="88" y="28" font-family="'-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif" font-size="24" font-weight="600" fill="#4299E1"> <!-- Blue 500 -->
+    .lol
+  </text>
+  <!-- Optional: A very subtle underline or accent element -->
+  <line x1="10" y1="35" x2="125" y2="35" stroke="#4299E1" stroke-width="1.5" />
+</svg>

@@ -1,0 +1,228 @@
+openapi: 3.1.1
+info:
+  title: Flyers.lol API
+  version: "1.0.0"
+  description: API for managing events on Flyers.lol
+
+servers:
+  - url: http://localhost:8080 # Assuming event-ingest runs here via docker-compose
+    description: Local development server
+
+paths:
+  /events:
+    post:
+      summary: Create a new event
+      description: Adds a new event to the system.
+      operationId: createEvent
+      requestBody:
+        description: Event object to be added
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event' # Or a simpler success response
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Event:
+      type: object
+      description: Schema for event data structure
+      required:
+        - version
+        - id
+        - title
+        - description
+        - start_time
+        - location
+        - organizer_info
+        - signature
+      properties:
+        version:
+          type: string
+          description: "Semantic version of the event data structure (e.g., \"1.0.0\")."
+          example: "1.0.0"
+        id:
+          type: string
+          description: "Unique identifier for the event (e.g., \"evt_xxxxxxxx\")."
+          example: "evt_123abc456"
+        title:
+          type: string
+          description: "The main title or name of the event."
+          example: "Community Hackathon"
+        description:
+          type: string
+          description: "A detailed description of the event."
+          example: "Join us for a day of coding and collaboration!"
+        start_time:
+          type: string
+          format: date-time
+          description: "The start date and time of the event in ISO 8601 format."
+          example: "2024-10-26T09:00:00Z"
+        end_time:
+          type: string
+          format: date-time
+          description: "The end date and time of the event in ISO 8601 format. Optional."
+          example: "2024-10-26T17:00:00Z"
+        location:
+          $ref: '#/components/schemas/Location'
+        organizer_info:
+          $ref: '#/components/schemas/OrganizerInfo'
+        action_link:
+          $ref: '#/components/schemas/ActionLink'
+        signature:
+          type: string
+          description: "Cryptographic signature of the event data from the original creator."
+          example: "0x123..."
+        media:
+          $ref: '#/components/schemas/Media'
+        related_links:
+          type: array
+          description: "An array of general-purpose links related to the event. Optional."
+          items:
+            $ref: '#/components/schemas/RelatedLinkItem'
+        vector_embedding:
+          type: array
+          description: "Vector embedding of the event's content. Optional at creation."
+          items:
+            type: number
+            format: float
+          example: [0.1, 0.2, 0.3]
+
+    Location:
+      type: object
+      description: "Object containing location details for the event."
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: "Name of the venue or a general location description."
+          example: "Community Hall"
+        address:
+          type: string
+          description: "Full street address of the event location. Optional."
+          example: "123 Main St, Anytown, USA"
+        geo:
+          $ref: '#/components/schemas/Geo'
+
+    Geo:
+      type: object
+      description: "Geographical coordinates. Optional."
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: float
+          example: 34.0522
+        longitude:
+          type: number
+          format: float
+          example: -118.2437
+
+    OrganizerInfo:
+      type: object
+      description: "Object containing information about the event organizer."
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: "Name of the organizer."
+          example: "Tech Enthusiasts Group"
+        contact_email:
+          type: string
+          format: email
+          description: "Contact email address for the organizer. Optional."
+          example: "organizer@example.com"
+        website:
+          type: string
+          format: uri
+          description: "Website URL for the organizer. Optional."
+          example: "https://techenthusiasts.example.com"
+
+    ActionLink:
+      type: object
+      description: "An object representing a primary call-to-action link for the event. Optional."
+      required:
+        - url
+        - text
+      properties:
+        url:
+          type: string
+          format: uri
+          example: "https://example.com/tickets"
+        text:
+          type: string
+          example: "Buy Tickets"
+        type:
+          type: string
+          description: "Type of action (e.g., \"purchase\", \"rsvp\", \"register\", \"info\"). Optional."
+          example: "purchase"
+
+    Media:
+      type: object
+      description: "Optional object for event-related media (image or video)."
+      required:
+        - type
+        - value
+      properties:
+        type:
+          type: string
+          enum: ["image", "video"]
+          example: "image"
+        value:
+          type: string
+          description: "URL, CID, or Data URI."
+          example: "https://example.com/event_image.jpg"
+
+    RelatedLinkItem:
+      type: object
+      description: "A general-purpose link related to the event."
+      required:
+        - url
+        - text
+      properties:
+        url:
+          type: string
+          format: uri
+          example: "https://example.com/more-info"
+        text:
+          type: string
+          example: "More Information"
+        type:
+          type: string
+          description: "Type of link (e.g., \"website\", \"social\", \"video\"). Optional."
+          example: "website"
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      required:
+        - code
+        - message

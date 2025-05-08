@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: elasticsearch:8.18.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 5s
+      timeout: 2s
+      retries: 600
+
+  admin-ui:
+    build: ./admin-ui
+    environment:
+      - API_BASE_URL=http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - event-ingest
+
+  event-ingest:
+    build: ./event-ingest
+    ports:
+      - "8080:8000" # Host:Container - FastAPI runs on 8000 in container
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+volumes:
+  elasticsearch-data:
