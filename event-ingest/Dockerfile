@@ -30,9 +30,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the ONNX model and tokenizer from the converter stage
 COPY --from=converter /app/gte-multilingual-base-onnx /app/gte-multilingual-base-onnx
 
-# Copy the event schema from the host into the image
-# Ensure this path matches EVENT_SCHEMA_PATH in main.py
-COPY ./event_schema.json /app/event_schema.json
+# Add the openapi schema to the container - but note that this is only there as a backup in case github is unavailable.
+ADD https://raw.githubusercontent.com/simonfelding/flyers.lol/refs/heads/main/openapi.yml /app/openapi.yml
 
 # Copy the application code (main.py)
 COPY main.py .
