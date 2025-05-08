@@ -3,13 +3,15 @@ FROM python:3.13 AS converter
 
 WORKDIR /app
 
+COPY convert_model.py converter_requirements.txt ./
+
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential cmake && \
     rm -rf /var/lib/apt/lists/* && \
     pip install -r converter_requirements.txt
 
 # Copy the conversion script
-COPY convert_model.py .
 
 # Run the conversion script
 # This will download the original model and save the ONNX version and tokenizer
@@ -30,12 +32,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the ONNX model and tokenizer from the converter stage
 COPY --from=converter /app/gte-multilingual-base-onnx /app/gte-multilingual-base-onnx
 
-# Add the openapi schema to the container - but note that this is only there as a backup in case github is unavailable.
-ADD https://raw.githubusercontent.com/simonfelding/flyers.lol/refs/heads/main/openapi.yml /app/openapi.yml
+# Copy the generated Pydantic models
+COPY ./generated_models.py /app/generated_models.py
 
 # Copy the application code (main.py)
 COPY main.py .
-# If there are other necessary files for main.py (like pydantic models in a separate file), copy them too.
+# If there are other necessary files for main.py, copy them too.
 
 # Expose port and set command
 EXPOSE 8000

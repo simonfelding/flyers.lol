@@ -20,11 +20,13 @@ services:
   admin-ui:
     build: ./admin-ui
     environment:
-      - API_BASE_URL=http://localhost:8080
+      - API_BASE_URL=http://localhost:8080 # For event-ingest service
+      - ELASTICSEARCH_URL=http://elasticsearch:9200 # For direct ES access
     ports:
       - "3000:3000"
     depends_on:
       - event-ingest
+      - elasticsearch
 
   event-ingest:
     build: ./event-ingest

@@ -1,13 +1,14 @@
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel, Field, HttpUrl
+from fastapi import FastAPI, HTTPException, status, Request
+# Pydantic BaseModel, Field, HttpUrl will come from generated_models or be standard types
 import onnxruntime as ort
 import numpy as np
 from tokenizers import Tokenizer # From the 'tokenizers' library by Hugging Face
 import os
-from typing import List, Dict, Any, Optional, Union # Added Union
+from typing import List, Dict, Any, Optional, Union
 import json
-# Removed jsonschema import
+# Removed yaml, jsonschema, validate, jsonschema_exceptions
 from elasticsearch import Elasticsearch, exceptions as es_exceptions
+from generated_models import Event # Assuming this will be the generated model name
 
 app = FastAPI()
 
@@ -25,9 +26,6 @@ try:
 except ConnectionError as e:
     print(f"FATAL: Could not connect to Elasticsearch: {e}")
     es_client = None # Allow app to start but endpoints will fail
-
-# --- JSON Schema loading removed ---
-
 
 # Define the ONNX Model Class
 class GTEOnnxModel:
@@ -116,49 +114,8 @@ def _generate_embedding(text_input: str) -> Optional[List[float]]:
         print(f"Error during internal embedding generation: {e}")
         return None
 
-# --- Pydantic Models (based on OpenAPI spec) ---
-class Geo(BaseModel):
-    latitude: float
-    longitude: float
-
-class Location(BaseModel):
-    name: str
-    address: Optional[str] = None
-    geo: Optional[Geo] = None
-
-class OrganizerInfo(BaseModel):
-    name: str
-    contact_email: Optional[str] = Field(None, pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$") # Basic email regex
-    website: Optional[HttpUrl] = None
-
-class ActionLink(BaseModel):
-    url: HttpUrl
-    text: str
-    type: Optional[str] = None
-
-class Media(BaseModel):
-    type: str # Literal["image", "video"] if using newer Pydantic/Python
-    value: str # Can be URL, CID, or Data URI
-
-class RelatedLinkItem(BaseModel):
-    url: HttpUrl
-    text: str
-    type: Optional[str] = None
-
-class Event(BaseModel):
-    version: str = Field(..., example="1.0.0")
-    id: str = Field(..., example="evt_123abc456")
-    title: str = Field(..., example="Community Hackathon")
-    description: str = Field(..., example="Join us for a day of coding and collaboration!")
-    start_time: str = Field(..., example="2024-10-26T09:00:00Z") # Assuming ISO datetime string
-    end_time: Optional[str] = Field(None, example="2024-10-26T17:00:00Z")
-    location: Location
-    organizer_info: OrganizerInfo
-    action_link: Optional[ActionLink] = None
-    signature: str = Field(..., example="0x123...")
-    media: Optional[Media] = None
-    related_links: Optional[List[RelatedLinkItem]] = None
-    vector_embedding: Optional[List[float]] = Field(None, example=[0.1, 0.2, 0.3]) # Will be populated by the service
+# Pydantic models are now imported from generated_models.py
+# The Event model (and its sub-models like Geo, Location, etc.) are expected to be in generated_models.EventPayload
 
 
 # --- Elasticsearch Index Management ---
@@ -232,51 +189,55 @@ async def ensure_events_index_exists():
 
 # --- API Endpoints ---
 
-@app.post("/events", status_code=status.HTTP_201_CREATED, response_model=Event) # Use new Event model for response
-async def ingest_event(event: Event): # FastAPI will validate against the Event model
+@app.post("/events", status_code=status.HTTP_201_CREATED, response_model=Event) # Use generated model for response
+async def ingest_event(event_data: Event): # Use generated model for request body
     if es_client is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Elasticsearch service not available.")
-    # JSON schema validation removed
 
-    # 1. Pydantic model (event) is already validated by FastAPI
+    # Schema validation is now handled by FastAPI using the Pydantic model EventPayload
+
+    # 1. Pydantic model (event_data) is already validated and parsed by FastAPI.
 
     # 2. Generate Embedding
-    # Ensure description is not None before concatenating
-    description_text = event.description if event.description else ""
-    text_to_embed = f"{event.title} {description_text}".strip()
+    # Ensure event_data has title and description attributes as expected by generated_models.EventPayload
+    description_text = event_data.description if event_data.description else ""
+    # Make sure title is not None. If it can be, handle appropriately.
+    title_text = event_data.title if event_data.title else ""
+    text_to_embed = f"{title_text} {description_text}".strip()
 
-    if not text_to_embed: # Handle cases where title and description might be empty (though title is required by model)
-        embedding = None # Or handle as an error, depending on requirements
-        print(f"Warning: Empty text for embedding for event ID {event.id}. Skipping embedding generation.")
+
+    if not text_to_embed:
+        embedding = None
+        print(f"Warning: Empty text for embedding for event ID {event_data.id}. Skipping embedding generation.")
     else:
         embedding = _generate_embedding(text_to_embed)
 
-    if embedding is None and text_to_embed: # If text was present but embedding failed
-        # Decide if this is a critical error. For now, we'll allow indexing without embedding if generation fails.
-        print(f"Warning: Failed to generate event embedding for event ID {event.id}. Event will be indexed without embedding.")
-        event.vector_embedding = None # Explicitly set to None
+    if embedding is None and text_to_embed:
+        print(f"Warning: Failed to generate event embedding for event ID {event_data.id}. Event will be indexed without embedding.")
+        # Assuming EventPayload has a vector_embedding field that can be None
+        event_data.vector_embedding = None
     elif embedding:
-        event.vector_embedding = embedding
+        # Assuming EventPayload has a vector_embedding field
+        event_data.vector_embedding = embedding
 
     # 3. Ensure Index Exists
     if not await ensure_events_index_exists():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to ensure Elasticsearch index exists.")
 
     # 4. Index to Elasticsearch
-    # Prepare data for Elasticsearch, Pydantic model_dump is useful here
-    event_data_for_es = event.model_dump(exclude_unset=True, exclude_none=True) # exclude_none to not send nulls unless intended
+    # Use model_dump(by_alias=True) as requested
+    event_data_for_es = event_data.model_dump(by_alias=True, exclude_unset=True, exclude_none=True)
 
     try:
-        await es_client.index(index=INDEX_NAME, id=event.id, document=event_data_for_es)
-        # Return the full event object as per OpenAPI spec (or a simpler success message if preferred)
-        return event
+        await es_client.index(index=INDEX_NAME, id=event_data.id, document=event_data_for_es)
+        return event_data
     except es_exceptions.ElasticsearchException as e:
-        print(f"Error indexing event {event.id} to Elasticsearch: {e}")
+        print(f"Error indexing event {event_data.id} to Elasticsearch: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to index event in Elasticsearch: {str(e)}")
 
 @app.get("/")
 def read_root():
     model_status = "ONNX model loaded" if onnx_gte_model else "ONNX model FAILED to load"
     es_status = "Elasticsearch client connected" if es_client and es_client.ping() else "Elasticsearch client FAILED to connect"
-    # Schema status removed
+    # openapi_schema_status no longer relevant here as schema is handled by Pydantic models
     return {"message": f"NLP service is running. Model: {model_status}. Elasticsearch: {es_status}."}

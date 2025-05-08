@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-generated-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install datamodel-code-generator
+        run: pip install "datamodel-code-generator[openapi]"
+      - name: Generate API code
+        run: make generate-api-code # This will be changed to generate-all-api-code
+      - name: Check for changes in generated code
+        run: |
+          git diff --exit-code event-ingest/generated_models.py || \
+          (echo "ERROR: Generated file event-ingest/generated_models.py is out of sync. Please run 'make generate-api-code' and commit the changes." && exit 1)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' # Or your preferred Node.js version
+      - name: Install admin-ui npm dependencies (for codegen tool)
+        run: npm install --prefix admin-ui openapi-typescript-codegen # Install tool locally for Makefile
+      - name: Generate all API code (Python models and TS types)
+        run: make generate-all-api-code # Or run individual targets
+      - name: Check for changes in admin-ui generated TS types
+        run: |
+          git diff --exit-code admin-ui/src/generated-api-types.ts || \
+          (echo "ERROR: Generated file admin-ui/src/generated-api-types.ts is out of sync. Please run 'make generate-admin-ui-types' (or 'make generate-all-api-code') and commit the changes." && exit 1)
+
+  build-containers:
+    needs: validate-generated-code
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [admin-ui, event-ingest] # Elasticsearch is a pre-built image
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for tj-actions/changed-files to compare history
+
+      - name: Get changed files in ${{ matrix.service }}
+        id: changed_files_service
+        uses: tj-actions/changed-files@v44 # Using a specific version for stability
+        with:
+          files: ${{ matrix.service }}/**
+
+      - name: Set up QEMU
+        if: steps.changed_files_service.outputs.any_changed == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # This can be outside the 'if' as it's harmless to set up
+
+      - name: Build multi-platform Docker image for ${{ matrix.service }}
+        if: steps.changed_files_service.outputs.any_changed == 'true'
+        run: |
+          echo "Changes detected in ${{ matrix.service }}. Building image..."
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t ${{ matrix.service }}:ci-${{ github.sha }} \
+            --file ./${{ matrix.service }}/Dockerfile \
+            ./${{ matrix.service }} \
+            --load
+
+      - name: Scan image ${{ matrix.service }} with Trivy
+        if: steps.changed_files_service.outputs.any_changed == 'true'
+        uses: aquasecurity/trivy-action@0.22.0
+        with:
+          image-ref: '${{ matrix.service }}:ci-${{ github.sha }}'
+          format: 'template'
+          template: '@/contrib/sarif.tpl'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH' # Fail on CRITICAL or HIGH vulnerabilities
+
+      - name: Upload Trivy scan results for ${{ matrix.service }}
+        if: steps.changed_files_service.outputs.any_changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results-${{ matrix.service }}
+          path: trivy-results-${{ matrix.service }}.sarif
+
+      - name: Generate SBOM for ${{ matrix.service }}
+        if: steps.changed_files_service.outputs.any_changed == 'true'
+        uses: anchore/sbom-action@v0.17.0
+        with:
+          image: '${{ matrix.service }}:ci-${{ github.sha }}' # Using the image built in the previous step
+          format: 'spdx-json' # Or your preferred SBOM format
+          output-file: '${{ matrix.service }}-sbom.spdx.json'
+
+      - name: Upload SBOM for ${{ matrix.service }}
+        if: steps.changed_files_service.outputs.any_changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-sbom # Updated artifact name
+          path: '${{ matrix.service }}-sbom.spdx.json' # Updated path to match output-file
+
+      - name: No changes in ${{ matrix.service }}
+        if: steps.changed_files_service.outputs.any_changed != 'true'
+        run: |
+          echo "No changes detected in ${{ matrix.service }}. Skipping build, scan, and SBOM generation."
+
+  draft-release:
+    runs-on: ubuntu-latest
+    # This job should only run on pushes to main, not on PRs to main.
+    # The overall workflow trigger `on.push.branches: [main]` covers this.
+    # We can add an explicit condition if needed, but release-drafter is usually
+    # designed to run on merges/pushes to the release branch.
+    steps:
+      - uses: release-drafter/release-drafter@v6 # Using a specific major version
+        # The GITHUB_TOKEN is automatically provided by GitHub Actions
+        # and has the necessary permissions for release-drafter to work.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
