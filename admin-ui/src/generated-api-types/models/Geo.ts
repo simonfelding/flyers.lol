@@ -6,7 +6,13 @@
  * Geographical coordinates. Optional.
  */
 export type Geo = {
-    latitude: number;
-    longitude: number;
+    /**
+     * Latitude of the event.
+     */
+    lat: number;
+    /**
+     * Longitude of the event.
+     */
+    lon: number;
 };
 

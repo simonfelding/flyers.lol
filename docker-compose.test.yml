@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  elasticsearch-test:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Disable security for simple testing
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9201:9200" # Use different host port for test ES
+    networks:
+      - test_net
+
+  event-ingest-test:
+    build: ./event-ingest
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch-test:9200 # Point to test ES
+      # API_BASE_URL is not needed by event-ingest itself
+    ports:
+      - "8081:8000" # Use different host port for test service
+    depends_on:
+      - elasticsearch-test
+    networks:
+      - test_net
+
+networks:
+  test_net:
+    driver: bridge

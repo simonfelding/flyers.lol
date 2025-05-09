@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (eventForm) {
-    eventForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    eventForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
 
       // Hide previous messages and show animation
       if (initialMessage) initialMessage.style.display = 'none';
@@ -24,29 +24,28 @@ document.addEventListener('DOMContentLoaded', () => {
       formMessage.className = 'mt-6 p-4 text-sm rounded-md hidden'; // Reset classes
       uploadIndicator.classList.remove('hidden');
 
-      const formData = new FormData(eventForm);
-      const data = Object.fromEntries(formData.entries());
+      const form = event.target;
+      const formData = new FormData(form);
 
       try {
-        const apiUrl = `${window.API_BASE_URL}/events`;
-        const response = await fetch(apiUrl, {
+        // Submit to admin-ui backend
+        const response = await fetch('/submit-event', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
+          body: formData, // Send FormData directly, browser sets Content-Type
         });
 
         uploadIndicator.classList.add('hidden');
         const result = await response.json();
 
-        if (response.ok && result.success) {
-          formMessage.textContent = `Event created successfully! Event ID: ${result.eventId}`;
-          formMessage.classList.remove('hidden');
-          formMessage.classList.add('bg-green-100', 'border', 'border-green-400', 'text-green-700');
-          eventForm.reset(); // Clear the form
+        if (result.success) {
+          // Show success message (optional, as we redirect)
+          // formMessage.textContent = `Event submitted successfully! Event ID: ${result.eventId}`;
+          // formMessage.classList.remove('hidden');
+          // formMessage.classList.add('bg-green-100', 'border', 'border-green-400', 'text-green-700');
+          // eventForm.reset();
+          window.location.href = '/?message=success&eventId=' + result.eventId; // Redirect to home with success message
         } else {
-          formMessage.textContent = result.message || 'An unknown error occurred.';
+          formMessage.textContent = result.error || 'An unknown error occurred while submitting the event.';
           formMessage.classList.remove('hidden');
           formMessage.classList.add('bg-red-100', 'border', 'border-red-400', 'text-red-700');
         }
@@ -55,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formMessage.textContent = 'Network error or server unavailable. Please try again.';
         formMessage.classList.remove('hidden');
         formMessage.classList.add('bg-red-100', 'border', 'border-red-400', 'text-red-700');
-        console.error('Form submission error:', error);
+        console.error('Error submitting form:', error);
       }
     });
   }

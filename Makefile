@@ -13,3 +13,7 @@ generate-admin-ui-types:
 # Modify existing generate-api-code or add a new all target
 .PHONY: generate-all-api-code
 generate-all-api-code: generate-api-code generate-admin-ui-types
+.PHONY: add-random-event
+add-random-event:
+	@echo "Adding a random event via script..."
+	python3 scripts/add_random_event.py

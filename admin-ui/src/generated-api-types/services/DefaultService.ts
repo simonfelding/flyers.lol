@@ -10,18 +10,27 @@ export class DefaultService {
     /**
      * Create a new event
      * Adds a new event to the system.
-     * @param requestBody Event object to be added
+     * @param formData Event object to be added
      * @returns Event Event created successfully
      * @throws ApiError
      */
     public static createEvent(
-        requestBody: Event,
+        formData: {
+            /**
+             * A JSON string representing the Event object (excluding vector embedding).
+             */
+            event: string;
+            /**
+             * The event image file (optional).
+             */
+            imageFile?: Blob;
+        },
     ): CancelablePromise<Event> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/events',
-            body: requestBody,
-            mediaType: 'application/json',
+            formData: formData,
+            mediaType: 'multipart/form-data',
             errors: {
                 400: `Invalid input`,
                 500: `Internal server error`,

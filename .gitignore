@@ -1,0 +1,3 @@
+# Python Test Artifacts
+event-ingest/tests/__pycache__/
+event-ingest/.pytest_cache/

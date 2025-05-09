@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - '*' # Trigger on any tag
 
 jobs:
   validate-generated-code:
@@ -107,6 +106,25 @@ jobs:
         if: steps.changed_files_service.outputs.any_changed != 'true'
         run: |
           echo "No changes detected in ${{ matrix.service }}. Skipping build, scan, and SBOM generation."
+
+  build-docs:
+    needs: build-containers # Depends on successful container builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install documentation dependencies
+        run: pip install -r requirements-docs.txt
+      - name: Build documentation
+        run: mkdocs build --strict --verbose
+      # Optional: Upload docs artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: site/
 
   draft-release:
     runs-on: ubuntu-latest

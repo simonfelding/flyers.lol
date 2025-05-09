@@ -18,9 +18,23 @@ paths:
         description: Event object to be added
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Event'
+              type: object
+              required:
+                - event
+              properties:
+                event:
+                  type: string
+                  description: A JSON string representing the Event object (excluding vector embedding).
+                  # example: '{"version": "1.0.0", "id": "evt_123", ...}' # Example of Event JSON
+                imageFile:
+                  type: string
+                  format: binary
+                  description: The event image file (optional).
+            encoding:
+              event:
+                contentType: application/json
       responses:
         '201':
           description: Event created successfully
@@ -128,16 +142,18 @@ components:
       type: object
       description: "Geographical coordinates. Optional."
       required:
-        - latitude
-        - longitude
+        - lat
+        - lon
       properties:
-        latitude:
+        lat:
           type: number
-          format: float
+          format: double
+          description: Latitude of the event.
           example: 34.0522
-        longitude:
+        lon:
           type: number
-          format: float
+          format: double
+          description: Longitude of the event.
           example: -118.2437
 
     OrganizerInfo:

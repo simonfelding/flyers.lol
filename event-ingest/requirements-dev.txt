@@ -1,0 +1,5 @@
+pytest
+pytest-asyncio # For testing async FastAPI code
+httpx # For making requests to the service within tests
+# pytest-docker (Optional - consider if managing ES directly in tests is needed, otherwise rely on compose)
+elasticsearch&gt;=8.0.0, &lt;9.0.0

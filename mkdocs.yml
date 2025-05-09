@@ -1,0 +1,37 @@
+site_name: Flyers.lol Documentation
+theme:
+  name: material # Use the Material theme
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+  language: en
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+      primary: teal
+      accent: purple
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+      primary: teal
+      accent: lime
+
+plugins:
+  - search
+  - redoc:
+      spec_url: openapi.yml
+
+nav: # Basic navigation structure
+  - Home: index.md
+  - Development: development.md # Link to existing dev info if moved
+  - API Reference: api.md
